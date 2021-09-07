@@ -32,11 +32,17 @@ io.on("connection",(socket)=>{
     socket.on('login',(data)=>{
         const user = users.find(i=>i.username===data.username)
         if(user && user.password === data.password){
-            onlineList.push({username:user.username,socketId:socket.id})
-            socket.emit('login',{success:true,username:data.username})
+            const temp = onlineList.find(i=>i.username === data.username)
+            if(!temp){
+                onlineList.push({username:user.username,socketId:socket.id})
+                socket.emit('login',{success:1,username:data.username})
+            }
+            else{
+                socket.emit('login',{success:2})
+            }
         }
         else{
-            socket.emit('login',{success:false})
+            socket.emit('login',{success:0})
         }
     })
 
@@ -53,30 +59,24 @@ io.on("connection",(socket)=>{
     })
 
     socket.on("online",(data)=>{
-        // onlineList.forEach(item=>{
-        //     io.sockets.to(item.socketId).emit("online",onlineList.map(i=>i.username))
-        // })
-
-        socket.broadcast.emit('online',('online list: '+ onlineList.map(i=>i.username)))
+        onlineList.forEach(item=>{
+            io.sockets.to(item.socketId).emit("online",onlineList.map(i=>i.username))
+        })
     })
     
     socket.on('sendMsg',(data)=>{
-        if(data === "/online"){
-            socket.broadcast.emit('online',('online list: '+ onlineList.map(i=>i.username)))
-        }
-        else{
             const user = onlineList.find(i=>i.socketId === socket.id)
-            // onlineList.forEach(item=>{
-            //     io.sockets.to(item.socketId).emit("getMsg",(user.username+': '+data))
-            // })
-            
-            socket.broadcast.emit("getMsg",(user.username+': '+data))
-        }
+            onlineList.forEach(item=>{
+                io.sockets.to(item.socketId).emit("getMsg",(user.username+': '+data))
+            })
     })
 
     socket.on("disconnect", () => {
             
         onlineList = onlineList.filter(i=>i.socketId!==socket.id)
+        onlineList.forEach(item=>{
+            io.sockets.to(item.socketId).emit("online",onlineList.map(i=>i.username))
+        })
     });
 })
 
